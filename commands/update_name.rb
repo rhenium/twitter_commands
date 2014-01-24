@@ -3,7 +3,8 @@ require "cgi"
 update_name = ->(str, json) do
   begin
     twitter.update_profile(name: str)
-    twitter.update(str.gsub(/[@＠]/, "(at)"))
+    twitter.update("@#{json[:user][:screen_name]} #{str.gsub(/[@＠]/, "(at)")} になりました",
+                   in_reply_to_status_id: json[:id])
   rescue
     twitter.update("@#{json[:user][:screen_name]} 表示名を更新できませんでした(∩´﹏`∩)",
                    in_reply_to_status_id: json[:id])
