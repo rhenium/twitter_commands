@@ -1,3 +1,4 @@
 source "https://rubygems.org"
-gem "oauth"
+gem "em-twitter"
+gem "twitter"
 

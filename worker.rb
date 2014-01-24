@@ -1,67 +1,78 @@
-require "net/https"
-require "oauth"
+require "em-twitter"
+require "twitter"
 require "json"
-require "cgi"
 require "./tokens"
 
-def access_token
-  @_access_token ||= begin
-    consumer = OAuth::Consumer.new(CONSUMER_KEY, CONSUMER_SECRET, site: "https://api.twitter.com")
-    OAuth::AccessToken.new(consumer, OAUTH_TOKEN, OAUTH_TOKEN_SECRET)
+def twitter
+  @_twitter ||= Twitter::REST::Client.new(consumer_key: CONSUMER_KEY, consumer_secret: CONSUMER_SECRET, oauth_token: OAUTH_TOKEN, oauth_token_secret: OAUTH_TOKEN_SECRET)
+end
+
+def user(update: false)
+  if !@_user || update
+    @_user = twitter.user
+  end
+
+  @_user
+end
+
+def serve(event, json)
+  @events ||= {}
+  @events[event] && @events[event].each do |c|
+    EM.defer { c.call(json) }
   end
 end
 
-def screen_name
-  @_screen_name ||= begin
-    res = access_token.get("/1.1/account/verify_credentials.json")
-    JSON.parse(res.body, symbolize_names: true)[:screen_name]
-  end
+def on_event(event, &blk)
+  @events ||= {}
+  @events[event] ||= []
+  @events[event] << blk
 end
 
-def reply(str, status)
-  access_token.post("/1.1/statuses/update.json",
-                    status: "@#{status[:user][:screen_name]} #{str}",
-                    in_reply_to_status_id: status[:id])
-end
-
-def update_name(str, status)
-  str = CGI.unescapeHTML(str)
-  res = access_token.post("/1.1/account/update_profile.json", name: str)
-  if res.code.to_i == 200
-    reply(str.gsub(/[@＠]/, "(at)"), status)
-  else
-    reply("表示名を更新できませんでした(∩´﹏`∩)", status)
-  end
-end
-
-def mainloop
-  uri = URI.parse("https://userstream.twitter.com/1.1/user.json")
-
-  https = Net::HTTP.new(uri.host, uri.port)
-  https.use_ssl = true
-  https.start do
-    request = Net::HTTP::Get.new(uri.request_uri)
-    request["Accept-Encoding"] = "identity;q=1"
-    request.oauth!(https, access_token.consumer, access_token)
-
-    https.request(request) do |res|
-      buf = ""
-      res.read_body do |chunk|
-        buf << chunk
-        while line = buf.slice!(/^.+?(\r\n)+/)
-          status = JSON.parse(line, symbolize_names: true) rescue next
-          next unless status[:text] #&& status[:user][:screen_name] != screen_name
-
-          if /^[@＠]#{screen_name}\s+update_name\s*(.+)$/ =~ status[:text]
-            update_name($1, status)
-          elsif /([(（][@＠]#{screen_name}[)）])/ =~ status[:text]
-            update_name(status[:text].sub($1, ""), status)
-          end
-        end
-      end
+def on_tweet(regexp, &blk)
+  on_event(:tweet) do |json|
+    p match = regexp.match(json[:text])
+    if match
+      blk.call(json, *match)
     end
   end
 end
 
+def mainloop
+  EM.run do
+    client = EM::Twitter::Client.new(
+      host: "userstream.twitter.com",
+      path: "/1.1/user.json",
+      params: { with: "user" },
+      oauth: twitter.credentials,
+      method: :get
+    )
+
+    client.each do |str|
+      json = JSON.parse(str, symbolize_names: true) rescue next
+
+      p json
+      if json[:text]
+        serve(:tweet, json)
+      elsif json[:event]
+        serve(json[:event].to_sym, json)
+      end
+    end
+
+    client.connect
+  end
+end
+
+def load_commands
+  Dir.glob(File.expand_path("../commands/*.rb", __FILE__)) do |file|
+    begin
+      load file
+    rescue
+      puts "Failed to load command: #{File.basename(file)}: #{$!}"
+      puts $@
+    end
+  end
+end
+
+load_commands
 mainloop
 
