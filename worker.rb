@@ -18,7 +18,14 @@ end
 def serve(event, json)
   @events ||= {}
   @events[event] && @events[event].each do |c|
-    EM.defer { c.call(json) }
+    EM.defer do
+      begin
+        c.call(json)
+      rescue
+        puts "Failed to execute callback: #{event}: #{$!}"
+        puts $@
+      end
+    end
   end
 end
 
@@ -30,7 +37,7 @@ end
 
 def on_tweet(regexp, &blk)
   on_event(:tweet) do |json|
-    p match = regexp.match(json[:text])
+    match = regexp.match(json[:text])
     if match
       blk.call(json, *match)
     end
@@ -50,7 +57,6 @@ def mainloop
     client.each do |str|
       json = JSON.parse(str, symbolize_names: true) rescue next
 
-      p json
       if json[:text]
         serve(:tweet, json)
       elsif json[:event]
