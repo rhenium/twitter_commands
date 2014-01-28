@@ -1,5 +1,9 @@
-CONSUMER_KEY = "nGnEIuZ7viOc5xaR7wmzCg"
-CONSUMER_SECRET = "5PY2FSTfeX1IYIUmI6jWFoUDXyeh4TuVRzuXuUgTPk"
-OAUTH_TOKEN = ""
-OAUTH_TOKEN_SECRET = ""
+TOKENS = [
+  {
+    consumer_key: "nGnEIuZ7viOc5xaR7wmzCg",
+    consumer_secret: "5PY2FSTfeX1IYIUmI6jWFoUDXyeh4TuVRzuXuUgTPk",
+    oauth_token: "",
+    oauth_token_secret: ""
+  },
+]
 
