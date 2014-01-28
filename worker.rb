@@ -49,7 +49,6 @@ def mainloop
     client = EM::Twitter::Client.new(
       host: "userstream.twitter.com",
       path: "/1.1/user.json",
-      params: { with: "user" },
       oauth: twitter.credentials,
       method: :get
     )
