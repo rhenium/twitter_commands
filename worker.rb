@@ -56,7 +56,7 @@ def mainloop
     client.each do |str|
       json = JSON.parse(str, symbolize_names: true) rescue next
 
-      if json[:text]
+      if json[:text] && !json[:retweeted_status]
         serve(:tweet, json)
       elsif json[:event]
         serve(json[:event].to_sym, json)
