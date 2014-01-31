@@ -16,7 +16,7 @@ on_tweet(/^[@＠]#{screen_name}\s+update_name\s*(.+)$/) do |json, match|
   update_name(str, json)
 end
 
-on_tweet(/([(（][@＠]#{screen_name}[)）])/) do |json, match|
+on_tweet(/([(（]\s*[@＠]#{screen_name}\s*[)）])/) do |json, match|
   str = CGI.unescapeHTML(json[:text].sub(match[1], ""))
   update_name(str, json)
 end
